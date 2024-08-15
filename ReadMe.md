@@ -38,8 +38,8 @@ This project is a simple yet comprehensive implementation of a neural network in
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/neural-network-from-scratch.git
-   cd neural-network-from-scratch
+   git clone https://github.com/FMain89/Project-Nessie.git
+   cd Project-Nessie
    ```
 
 2. **Install dependencies**:
