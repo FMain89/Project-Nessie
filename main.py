@@ -7,8 +7,6 @@
 import numpy as np
 # import matplotlib
 
-np.random.seed(0)
-
 
 class Layer_Dense:
     """
@@ -419,6 +417,491 @@ class Activation_Softmax_Loss_CategoricalCrossentropy:
         self.dinputs = dvalues.copy()
         self.dinputs[range(samples), y_true] -= 1
         self.dinputs = self.dinputs / samples
+
+
+class Optimizer_SGD:
+    """
+    Stochastic Gradient Descent (SGD) optimizer with optional learning rate
+    decay and momentum.
+
+    This optimizer adjusts the weights and biases of the layers in a neural
+    network based on the gradients calculated during backpropagation. It
+    includes options for learning rate decay, which reduces the learning rate
+    over time, and momentum, which helps accelerate gradient vectors in the
+    right directions, leading to faster converging.
+
+    Attributes:
+        learning_rate (float): The initial learning rate for the optimizer.
+        current_learning_rate (float): The adjusted learning rate considering
+                                       decay.
+        decay (float): The decay factor to decrease the learning rate over
+                       iterations.
+        iterations (int): The number of iterations (updates) performed.
+        momentum (float): The momentum factor to accelerate gradient descent.
+    """
+
+    def __init__(self, learning_rate=1.0, decay=0, momentum=0) -> None:
+        """
+        Initializes the Optimizer_SGD instance.
+
+        This method initializes the optimizer with the given learning rate,
+        decay, and momentum. It also sets up the initial learning rate and
+        iteration count.
+
+        Parameters:
+            learning_rate (float): The initial learning rate (default is 1.0).
+            decay (float): The decay factor to decrease the learning rate over
+                           time (default is 0, meaning no decay).
+            momentum (float): The momentum factor to use (default is 0,
+                              meaning no momentum).
+
+        Returns:
+            None
+        """
+        self.learning_rate = learning_rate
+        self.current_learning_rate = learning_rate
+        self.decay = decay
+        self.iterations = 0
+        self.momentum = momentum
+
+    def pre_update_params(self) -> None:
+        """
+        Adjusts the learning rate before updating parameters.
+
+        If decay is used, this method adjusts the learning rate based on the
+        number of iterations, reducing it over time to allow for finer
+        adjustments to the model parameters as training progresses.
+
+        Returns:
+            None
+        """
+        if self.decay:
+            self.current_learning_rate = (
+                self.learning_rate * (1. / (1. + self.decay * self.iterations))
+            )
+
+    def update_params(self, layer) -> None:
+        """
+        Updates the weights and biases of a layer.
+
+        This method applies the calculated gradients to the weights and biases
+        of the given layer. If momentum is used, it applies momentum to the
+        updates to accelerate gradient descent.
+
+        Parameters:
+            layer: The layer whose parameters (weights and biases) will be
+                   updated. The layer should have attributes `weights`,
+                   `biases`, `dweights`, and `dbiases`.
+
+        Returns:
+            None
+        """
+        if self.momentum:
+            if not hasattr(layer, 'weight_momentums'):
+                layer.weight_momentums = np.zeros_like(layer.weights)
+                layer.bias_momentums = np.zeros_like(layer.biases)
+
+            weight_updates = (
+                self.momentum * layer.weight_momentums -
+                self.current_learning_rate * layer.dweights
+            )
+            layer.weight_momentums = weight_updates
+
+            bias_updates = (
+                self.momentum * layer.bias_momentums -
+                self.current_learning_rate * layer.dbiases
+            )
+            layer.bias_momentums = bias_updates
+        else:
+            weight_updates = -self.current_learning_rate * layer.dweights
+            bias_updates = -self.current_learning_rate * layer.dbiases
+
+        layer.weights += weight_updates
+        layer.biases += bias_updates
+
+    def post_update_params(self) -> None:
+        """
+        Increments the iteration count after parameter updates.
+
+        This method is called after the parameters of all layers have been
+        updated. It increments the internal counter for the number of
+        iterations, which can be used to adjust the learning rate in
+        subsequent updates.
+
+        Returns:
+            None
+        """
+        self.iterations += 1
+
+
+class Optimizer_Adagrad:
+    """
+    Implements the Adagrad optimizer.
+
+    The Adagrad (Adaptive Gradient) optimizer adapts the learning rate for each
+    parameter individually by scaling it inversely proportional to the square
+    root of the sum of the squares of all historical gradients. This allows
+    for more fine-tuned updates and can be particularly effective for sparse
+    data.
+
+    Attributes:
+        learning_rate (float): The initial learning rate for the optimizer.
+        current_learning_rate (float): The adjusted learning rate considering
+                                       decay.
+        decay (float): The decay factor to decrease the learning rate over
+                       iterations.
+        iterations (int): The number of iterations (updates) performed.
+        epsilon (float): A small constant to prevent division by zero.
+    """
+
+    def __init__(self, learning_rate=1.0, decay=0, epsilon=1e-7) -> None:
+        """
+        Initializes the Optimizer_Adagrad instance.
+
+        This method initializes the optimizer with the given learning rate,
+        decay, and epsilon. It also sets up the initial learning rate,
+        iteration count, and caches for storing squared gradients.
+
+        Parameters:
+            learning_rate (float): The initial learning rate (default is 1.0).
+            decay (float): The decay factor to decrease the learning rate over
+                           time (default is 0, meaning no decay).
+            epsilon (float): A small constant added to the denominator to
+                             prevent division by zero (default is 1e-7).
+
+        Returns:
+            None
+        """
+        self.learning_rate = learning_rate
+        self.current_learning_rate = learning_rate
+        self.decay = decay
+        self.iterations = 0
+        self.epsilon = epsilon
+
+    def pre_update_params(self) -> None:
+        """
+        Adjusts the learning rate before updating parameters.
+
+        If decay is used, this method adjusts the learning rate based on the
+        number of iterations, reducing it over time to allow for finer
+        adjustments to the model parameters as training progresses.
+
+        Returns:
+            None
+        """
+        if self.decay:
+            self.current_learning_rate = (
+                self.learning_rate * (1. / (1. + self.decay * self.iterations))
+            )
+
+    def update_params(self, layer) -> None:
+        """
+        Updates the weights and biases of a layer using Adagrad optimization.
+
+        This method applies the Adagrad update rule, which adapts the learning
+        rate based on the accumulated squared gradients for each parameter.
+        It ensures that the learning rate decreases more slowly for parameters
+        with larger gradients.
+
+        Parameters:
+            layer: The layer whose parameters (weights and biases) will be
+                   updated. The layer should have attributes `weights`,
+                   `biases`, `dweights`, and `dbiases`.
+
+        Returns:
+            None
+        """
+        if not hasattr(layer, 'weight_cache'):
+            layer.weight_cache = np.zeros_like(layer.weights)
+            layer.bias_cache = np.zeros_like(layer.biases)
+
+        layer.weight_cache += layer.dweights**2
+        layer.bias_cache += layer.dbiases**2
+
+        layer.weights += -self.current_learning_rate * layer.dweights / (
+            np.sqrt(layer.weight_cache) + self.epsilon
+        )
+        layer.biases += -self.current_learning_rate * layer.dbiases / (
+            np.sqrt(layer.bias_cache) + self.epsilon
+        )
+
+    def post_update_params(self) -> None:
+        """
+        Increments the iteration count after parameter updates.
+
+        This method is called after the parameters of all layers have been
+        updated. It increments the internal counter for the number of
+        iterations, which can be used to adjust the learning rate in
+        subsequent updates.
+
+        Returns:
+            None
+        """
+        self.iterations += 1
+
+
+class Optimizer_RMSprop:
+    """
+    Implements the RMSprop optimizer.
+
+    RMSprop (Root Mean Square Propagation) is an adaptive learning rate method
+    that adjusts the learning rate for each parameter individually. It keeps a
+    moving average of the squared gradients and divides the gradient by the
+    square root of this average. This helps to normalize the updates and can
+    lead to better performance in training deep neural networks.
+
+    Attributes:
+        learning_rate (float): The initial learning rate for the optimizer.
+        current_learning_rate (float): The adjusted learning rate considering
+                                       decay.
+        decay (float): The decay factor to decrease the learning rate over
+                       iterations.
+        iterations (int): The number of iterations (updates) performed.
+        epsilon (float): A small constant to prevent division by zero.
+        rho (float): The decay rate for the moving average of squared
+                     gradients.
+    """
+
+    def __init__(self, learning_rate=0.001, decay=0,
+                 epsilon=1e-7, rho=0.9) -> None:
+        """
+        Initializes the Optimizer_RMSprop instance.
+
+        This method initializes the optimizer with the given learning rate,
+        decay, epsilon, and rho (decay rate for the moving average). It also
+        sets up the initial learning rate and iteration count.
+
+        Parameters:
+            learning_rate (float): The initial learning rate (default is 0.001)
+            decay (float): The decay factor to decrease the learning rate over
+                           time (default is 0, meaning no decay).
+            epsilon (float): A small constant added to the denominator to
+                             prevent division by zero (default is 1e-7).
+            rho (float): The decay rate for the moving average of squared
+                         gradients (default is 0.9).
+
+        Returns:
+            None
+        """
+        self.learning_rate = learning_rate
+        self.current_learning_rate = learning_rate
+        self.decay = decay
+        self.iterations = 0
+        self.epsilon = epsilon
+        self.rho = rho
+
+    def pre_update_params(self) -> None:
+        """
+        Adjusts the learning rate before updating parameters.
+
+        If decay is used, this method adjusts the learning rate based on the
+        number of iterations, reducing it over time to allow for finer
+        adjustments to the model parameters as training progresses.
+
+        Returns:
+            None
+        """
+        if self.decay:
+            self.current_learning_rate = (
+                self.learning_rate * (1. / (1. + self.decay * self.iterations))
+            )
+
+    def update_params(self, layer) -> None:
+        """
+        Updates the weights and biases of a layer using RMSprop optimization.
+
+        This method applies the RMSprop update rule, which keeps a moving
+        average of the squared gradients and normalizes the updates by
+        dividing by the square root of this average.
+
+        Parameters:
+            layer: The layer whose parameters (weights and biases) will be
+                   updated. The layer should have attributes `weights`,
+                   `biases`, `dweights`, and `dbiases`.
+
+        Returns:
+            None
+        """
+        if not hasattr(layer, 'weight_cache'):
+            layer.weight_cache = np.zeros_like(layer.weights)
+            layer.bias_cache = np.zeros_like(layer.biases)
+
+        # Update the cache with the current gradients
+        layer.weight_cache = (
+            self.rho * layer.weight_cache + (1 - self.rho) * layer.dweights**2
+        )
+        layer.bias_cache = (
+            self.rho * layer.bias_cache + (1 - self.rho) * layer.dbiases**2
+        )
+
+        # Apply the updates to weights and biases
+        layer.weights += -self.current_learning_rate * layer.dweights / (
+            np.sqrt(layer.weight_cache) + self.epsilon
+        )
+        layer.biases += -self.current_learning_rate * layer.dbiases / (
+            np.sqrt(layer.bias_cache) + self.epsilon
+        )
+
+    def post_update_params(self) -> None:
+        """
+        Increments the iteration count after parameter updates.
+
+        This method is called after the parameters of all layers have been
+        updated. It increments the internal counter for the number of
+        iterations, which can be used to adjust the learning rate in
+        subsequent updates.
+
+        Returns:
+            None
+        """
+        self.iterations += 1
+
+
+class Optimizer_Adam:
+    """
+    Implements the Adam optimizer.
+
+    Adam (Adaptive Moment Estimation) is an adaptive learning rate optimization
+    algorithm that's been designed to combine the advantages of two other
+    popular methods: AdaGrad and RMSProp. It computes adaptive learning rates
+    for each parameter by keeping track of the first and second moments of the
+    gradients.
+
+    Attributes:
+        learning_rate (float): The initial learning rate for the optimizer.
+        current_learning_rate (float): The adjusted learning rate considering
+                                       decay.
+        decay (float): The decay factor to decrease the learning rate over
+                       iterations.
+        iterations (int): The number of iterations (updates) performed.
+        epsilon (float): A small constant to prevent division by zero.
+        beta_1 (float): The exponential decay rate for the first moment
+                        estimates.
+        beta_2 (float): The exponential decay rate for the second moment
+                        estimates.
+    """
+
+    def __init__(self, learning_rate=0.001, decay=0, epsilon=1e-7,
+                 beta_1=0.9, beta_2=0.999) -> None:
+        """
+        Initializes the Optimizer_Adam instance.
+
+        This method initializes the optimizer with the given learning rate,
+        decay, epsilon, beta_1, and beta_2. It also sets up the initial
+        learning rate and iteration count.
+
+        Parameters:
+            learning_rate (float): The initial learning rate (default is 0.001)
+            decay (float): The decay factor to decrease the learning rate over
+                           time (default is 0, meaning no decay).
+            epsilon (float): A small constant added to the denominator to
+                             prevent division by zero (default is 1e-7).
+            beta_1 (float): The exponential decay rate for the first moment
+                            estimates (default is 0.9).
+            beta_2 (float): The exponential decay rate for the second moment
+                            estimates (default is 0.999).
+
+        Returns:
+            None
+        """
+        self.learning_rate = learning_rate
+        self.current_learning_rate = learning_rate
+        self.decay = decay
+        self.iterations = 0
+        self.epsilon = epsilon
+        self.beta_1 = beta_1
+        self.beta_2 = beta_2
+
+    def pre_update_params(self) -> None:
+        """
+        Adjusts the learning rate before updating parameters.
+
+        If decay is used, this method adjusts the learning rate based on the
+        number of iterations, reducing it over time to allow for finer
+        adjustments to the model parameters as training progresses.
+
+        Returns:
+            None
+        """
+        if self.decay:
+            self.current_learning_rate = (
+                self.learning_rate * (1. / (1. + self.decay * self.iterations))
+            )
+
+    def update_params(self, layer) -> None:
+        """
+        Updates the weights and biases of a layer using Adam optimization.
+
+        This method applies the Adam update rule, which uses the first and
+        second moment estimates to adapt the learning rate for each parameter
+        individually.
+
+        Parameters:
+            layer: The layer whose parameters (weights and biases) will be
+                   updated. The layer should have attributes `weights`,
+                   `biases`, `dweights`, and `dbiases`.
+
+        Returns:
+            None
+        """
+        if not hasattr(layer, 'weight_momentums'):
+            layer.weight_momentums = np.zeros_like(layer.weights)
+            layer.weight_cache = np.zeros_like(layer.weights)
+            layer.bias_momentums = np.zeros_like(layer.biases)
+            layer.bias_cache = np.zeros_like(layer.biases)
+
+        layer.weight_momentums = (
+            self.beta_1 * layer.weight_momentums + (1 - self.beta_1) *
+            layer.dweights
+        )
+        layer.bias_momentums = (
+            self.beta_1 * layer.bias_momentums + (1 - self.beta_1) *
+            layer.dbiases
+        )
+
+        weight_momentums_corrected = (
+            layer.weight_momentums / (1 - self.beta_1 ** (self.iterations + 1))
+        )
+        bias_momentums_corrected = (
+            layer.bias_momentums / (1 - self.beta_1 ** (self.iterations + 1))
+        )
+
+        layer.weight_cache = (
+            self.beta_2 * layer.weight_cache + (1 - self.beta_2) *
+            layer.dweights ** 2
+        )
+        layer.bias_cache = (
+            self.beta_2 * layer.bias_cache + (1 - self.beta_2) *
+            layer.dbiases ** 2
+        )
+
+        weight_cache_corrected = (
+            layer.weight_cache / (1 - self.beta_2 ** (self.iterations + 1))
+        )
+        bias_cache_corrected = (
+            layer.bias_cache / (1 - self.beta_2 ** (self.iterations + 1))
+        )
+
+        layer.weights += -self.current_learning_rate * weight_momentums_corrected / (
+            np.sqrt(weight_cache_corrected) + self.epsilon
+        )
+        layer.biases += -self.current_learning_rate * bias_momentums_corrected / (
+            np.sqrt(bias_cache_corrected) + self.epsilon
+        )
+
+    def post_update_params(self) -> None:
+        """
+        Increments the iteration count after parameter updates.
+
+        This method is called after the parameters of all layers have been
+        updated. It increments the internal counter for the number of
+        iterations, which can be used to adjust the learning rate in
+        subsequent updates.
+
+        Returns:
+            None
+        """
+        self.iterations += 1
 
 
 # print("Python:", sys.version)
