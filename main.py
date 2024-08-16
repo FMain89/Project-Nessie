@@ -15,7 +15,7 @@ class Layer_Dense:
     This class represents a dense layer in a neural network, where each neuron
     in the layer is connected to every neuron in the previous layer. It
     includes methods to initialize the layer's weights and biases and to
-    perform a forward  pass to compute the output of the layer.
+    perform a forward pass to compute the output of the layer.
 
     Attributes:
         weights (np.ndarray): The weight matrix of the layer, initialized with
@@ -30,9 +30,17 @@ class Layer_Dense:
                               biases.
         dinputs (np.ndarray): The gradient of the loss with respect to the
                               inputs of the layer.
+        weight_regularizer_l1 (float): L1 regularization factor for the
+                                       weights.
+        weight_regularizer_l2 (float): L2 regularization factor for the
+                                       weights.
+        bias_regularizer_l1 (float): L1 regularization factor for the biases.
+        bias_regularizer_l2 (float): L2 regularization factor for the biases.
     """
 
-    def __init__(self, num_inputs, num_neurons) -> None:
+    def __init__(self, num_inputs, num_neurons, weight_regularizer_l1=0,
+                 weight_regularizer_l2=0, bias_regularizer_l1=0,
+                 bias_regularizer_l2=0) -> None:
         """
         Initializes the Layer_Dense instance.
 
@@ -44,12 +52,24 @@ class Layer_Dense:
             num_inputs (int): The number of input features (i.e., the number of
                               neurons in the previous layer).
             num_neurons (int): The number of neurons in the current layer.
+            weight_regularizer_l1 (float): L1 regularization factor for the
+                                           weights.
+            weight_regularizer_l2 (float): L2 regularization factor for the
+                                           weights.
+            bias_regularizer_l1 (float): L1 regularization factor for the
+                                         biases.
+            bias_regularizer_l2 (float): L2 regularization factor for the
+                                         biases.
 
         Returns:
             None
         """
-        self.weights = 0.10 * np.random.rand(num_inputs, num_neurons)
+        self.weights = 0.10 * np.random.randn(num_inputs, num_neurons)
         self.biases = np.zeros((1, num_neurons))
+        self.weight_regularizer_l1 = weight_regularizer_l1
+        self.weight_regularizer_l2 = weight_regularizer_l2
+        self.bias_regularizer_l1 = bias_regularizer_l1
+        self.bias_regularizer_l2 = bias_regularizer_l2
 
     def forward(self, inputs) -> None:
         """
@@ -88,10 +108,106 @@ class Layer_Dense:
             None: The gradients are stored in the `dweights`, `dbiases`, and
                   `dinputs` attributes.
         """
-
         self.dweights = np.dot(self.inputs.T, dvalues)
         self.dbiases = np.sum(dvalues, axis=0, keepdims=True)
+
+        if self.weight_regularizer_l1 > 0:
+            dL1 = np.ones_like(self.weights)
+            dL1[self.weights < 0] = -1
+            self.dweights += self.weight_regularizer_l1 * dL1
+
+        if self.weight_regularizer_l2 > 0:
+            self.dweights += 2 * self.weight_regularizer_l2 * self.weights
+
+        if self.bias_regularizer_l1 > 0:
+            dL1 = np.ones_like(self.biases)
+            dL1[self.biases < 0] = -1
+            self.dbiases += self.bias_regularizer_l1 * dL1
+
+        if self.bias_regularizer_l2 > 0:
+            self.dbiases += 2 * self.bias_regularizer_l2 * self.biases
+
         self.dinputs = np.dot(dvalues, self.weights.T)
+
+
+class Layer_Dropout:
+    """
+    Implements a dropout layer.
+
+    Dropout is a regularization technique that randomly sets a fraction of the
+    input units to 0 at each update during training time, which helps prevent
+    overfitting. The layer temporarily drops out (deactivates) a proportion of
+    the input units during the forward pass.
+
+    Attributes:
+        rate (float): The dropout rate (fraction of input units to drop). The
+                      value should be between 0 and 1.
+        binary_mask (np.ndarray): The binary mask applied to the inputs,
+                                  indicating which inputs were kept and which
+                                  were dropped.
+        inputs (np.ndarray): The input values to the layer during the forward
+                             pass.
+        output (np.ndarray): The output values after applying the dropout mask.
+        dinputs (np.ndarray): The gradient of the loss with respect to the
+                              inputs, after applying the dropout mask during
+                              backpropagation.
+    """
+
+    def __init__(self, rate) -> None:
+        """
+        Initializes the Layer_Dropout instance.
+
+        This method sets the dropout rate, which determines the fraction of
+        input units to drop (deactivate) during the forward pass.
+
+        Parameters:
+            rate (float): The dropout rate, a float between 0 and 1. This
+                          specifies the fraction of input units to drop.
+
+        Returns:
+            None
+        """
+        self.rate = 1 - rate
+
+    def forward(self, inputs) -> None:
+        """
+        Performs a forward pass through the dropout layer.
+
+        During the forward pass, a binary mask is created using a binomial
+        distribution based on the dropout rate. The input values are then
+        multiplied by this mask to drop (deactivate) a portion of the inputs.
+
+        Parameters:
+            inputs (np.ndarray): The input values to the layer. The shape
+                                 should match the output of the previous layer.
+
+        Returns:
+            None: The output after applying dropout is stored in the `output`
+                  attribute.
+        """
+        self.inputs = inputs
+        self.binary_mask = np.random.binomial(1, self.rate,
+                                              size=inputs.shape) / self.rate
+        self.output = inputs * self.binary_mask
+
+    def backward(self, dvalues) -> None:
+        """
+        Performs a backward pass through the dropout layer.
+
+        During backpropagation, the gradient of the loss with respect to the
+        inputs is calculated by multiplying the incoming gradient by the same
+        binary mask used during the forward pass. This ensures that the
+        gradient is only propagated through the units that were not dropped.
+
+        Parameters:
+            dvalues (np.ndarray): The gradient of the loss with respect to the
+                                  output of the dropout layer.
+
+        Returns:
+            None: The gradients after applying the dropout mask are stored in
+                  the `dinputs` attribute.
+        """
+        self.dinputs = dvalues * self.binary_mask
 
 
 class Activation_ReLU:
@@ -191,6 +307,7 @@ class Activation_Softmax:
             None: The output probabilities are stored in the `output`
                   attribute.
         """
+        self.inputs = inputs
         exp_values = np.exp(inputs - np.max(inputs, axis=1, keepdims=True))
         probabilities = exp_values / np.sum(exp_values, axis=1, keepdims=True)
         self.output = probabilities
@@ -237,6 +354,43 @@ class Loss:
     Attributes:
         None: The base `Loss` class does not define any attributes on its own.
     """
+
+    def regularization_loss(self, layer):
+        """
+        Calculates the regularization loss for a given layer.
+
+        This method computes the additional loss introduced by L1 and L2
+        regularization on the weights and biases of a layer. The regularization
+        loss is a penalty that discourages complex models by adding a cost to
+        larger weight values.
+
+        Parameters:
+            layer: The layer whose regularization loss is to be calculated. The
+                    layer should have attributes `weights`, `biases`,
+                    `weight_regularizer_l1`, `weight_regularizer_l2`,
+                    `bias_regularizer_l1`, and `bias_regularizer_l2`.
+
+        Returns:
+            float: The calculated regularization loss.
+        """
+        regularization_loss = 0
+        if layer.weight_regularization_l1 > 0:
+            regularization_loss += layer.weight_regularizer_l1 * np.sum(np.abs(
+                layer.weights))
+
+        if layer.weight_regularization_l2 > 0:
+            regularization_loss += layer.weight_regularizer_l2 * np.sum(
+                layer.weights * layer.weights)
+
+        if layer.bias_regularization_l1 > 0:
+            regularization_loss += layer.bias_regularizer_l1 * np.sum(np.abs(
+                    layer.bias))
+
+        if layer.bias_regularization_l2 > 0:
+            regularization_loss += layer.bias_regularizer_l2 * np.sum(
+                layer.bias * layer.bias)
+
+        return regularization_loss
 
     def calculate(self, output, y):
         """
@@ -726,7 +880,6 @@ class Optimizer_RMSprop:
             layer.weight_cache = np.zeros_like(layer.weights)
             layer.bias_cache = np.zeros_like(layer.biases)
 
-        # Update the cache with the current gradients
         layer.weight_cache = (
             self.rho * layer.weight_cache + (1 - self.rho) * layer.dweights**2
         )
@@ -734,7 +887,6 @@ class Optimizer_RMSprop:
             self.rho * layer.bias_cache + (1 - self.rho) * layer.dbiases**2
         )
 
-        # Apply the updates to weights and biases
         layer.weights += -self.current_learning_rate * layer.dweights / (
             np.sqrt(layer.weight_cache) + self.epsilon
         )

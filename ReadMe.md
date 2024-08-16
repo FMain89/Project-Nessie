@@ -1,7 +1,7 @@
 
 # Neural Network from Scratch
 
-This repository contains an implementation of a neural network built from scratch in Python. The code provides basic components necessary to create, train, and optimize a neural network, including activation functions, loss functions, and optimizers.
+This repository contains an implementation of a neural network built from scratch in Python. The code provides basic components necessary to create, train, and optimize a neural network, including activation functions, loss functions, optimizers, and regularization techniques.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ This repository contains an implementation of a neural network built from scratc
 
 ## Introduction
 
-This project is a simple yet comprehensive implementation of a neural network in Python, designed for educational purposes. It demonstrates how to build a neural network from the ground up, covering everything from defining layers and activation functions to implementing various optimization algorithms.
+This project is a simple yet comprehensive implementation of a neural network in Python, designed for educational purposes. It demonstrates how to build a neural network from the ground up, covering everything from defining layers and activation functions to implementing various optimization algorithms and regularization techniques.
 
 ## Features
 
@@ -31,6 +31,10 @@ This project is a simple yet comprehensive implementation of a neural network in
   - Adagrad
   - RMSprop
   - Adam
+- **Regularization**:
+  - L1 and L2 regularization on weights and biases
+- **Dropout**:
+  - Dropout layer for regularization during training
 - **Backpropagation**: Implementation of backward passes for updating the model parameters.
 - **Integration**: Combination of Softmax activation with Categorical Cross-Entropy loss for streamlined gradient calculations.
 
@@ -69,22 +73,24 @@ Below is an example of how to define a simple neural network using the component
 
 ```python
 import numpy as np
-from main import Layer_Dense, Activation_ReLU, Activation_Softmax, Loss_CategoricalCrossEntropy, Optimizer_SGD
+from main import Layer_Dense, Activation_ReLU, Activation_Softmax, Loss_CategoricalCrossEntropy, Optimizer_SGD, Layer_Dropout
 
 # Example input data
 X = np.array([[1, 2], [2, 3], [3, 4]])
 y = np.array([0, 1, 1])
 
 # Define layers
-dense1 = Layer_Dense(2, 3)
+dense1 = Layer_Dense(2, 3, weight_regularizer_l2=0.01)
 activation1 = Activation_ReLU()
+dropout1 = Layer_Dropout(0.5)
 dense2 = Layer_Dense(3, 3)
 activation2 = Activation_Softmax()
 
 # Forward pass
 dense1.forward(X)
 activation1.forward(dense1.output)
-dense2.forward(activation1.output)
+dropout1.forward(activation1.output)
+dense2.forward(dropout1.output)
 activation2.forward(dense2.output)
 
 # Compute loss
