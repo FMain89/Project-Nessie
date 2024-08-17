@@ -64,7 +64,7 @@ class Layer_Dense:
         Returns:
             None
         """
-        self.weights = 0.10 * np.random.randn(num_inputs, num_neurons)
+        self.weights = 0.1 * np.random.randn(num_inputs, num_neurons)
         self.biases = np.zeros((1, num_neurons))
         self.weight_regularizer_l1 = weight_regularizer_l1
         self.weight_regularizer_l2 = weight_regularizer_l2
@@ -268,6 +268,25 @@ class Activation_ReLU:
         self.dinputs = dvalues.copy()
         self.dinputs[self.inputs <= 0] = 0
 
+    def predictions(self, outputs):
+        """
+        Returns the predictions based on the ReLU activation function.
+
+        Since ReLU does not alter positive values and sets negative values to
+        zero, the `predictions` method in this context simply returns the
+        outputs as they are. This is typically used when ReLU is followed by a
+        layer that produces the final predictions.
+
+        Parameters:
+            outputs (np.ndarray): The output data from the ReLU activation
+                                  function, typically passed from the previous
+                                  layer.
+
+        Returns:
+            np.ndarray: The predictions, which are the same as the outputs.
+        """
+        return outputs
+
 
 class Activation_Softmax:
     """
@@ -341,6 +360,169 @@ class Activation_Softmax:
 
             self.dinputs[index] = np.dot(jacobian_matrix, single_dvalues)
 
+    def predictions(self, outputs):
+        """
+        Converts Softmax output probabilities into class predictions.
+
+        This method returns the class with the highest probability for each
+        sample. Since the output of the Softmax function is a probability
+        distribution across multiple classes, this method simply selects the
+        index (class label) with the maximum probability for each sample.
+
+        Parameters:
+            outputs (np.ndarray): The output probabilities from the Softmax
+                                  function. The shape should be (n_samples,
+                                  n_classes).
+
+        Returns:
+            np.ndarray: An array of class predictions (indices) for each
+                        sample.
+        """
+        return np.argmax(outputs, axis=1)
+
+
+class Activation_Sigmoid:
+    """
+    Implements the Sigmoid activation function.
+
+    The Sigmoid activation function maps input values to an output range
+    between 0 and 1. It is commonly used in the output layer of binary
+    classification models, as it can represent probabilities.
+
+    Attributes:
+        inputs (np.ndarray): The input values to the activation function.
+        output (np.ndarray): The output values after applying the Sigmoid
+                             activation function.
+        dinputs (np.ndarray): The gradient of the loss with respect to the
+                              inputs, used during backpropagation.
+    """
+
+    def forward(self, inputs) -> None:
+        """
+        Performs a forward pass through the Sigmoid activation function.
+
+        This method applies the Sigmoid function to each element in the input
+        array, mapping input values to a range between 0 and 1.
+
+        Parameters:
+            inputs (np.ndarray): The input data to the activation function.
+
+        Returns:
+            None: The output of the Sigmoid function is stored in the `output`
+                  attribute.
+        """
+        self.inputs = inputs
+        self.output = 1 / (1 + np.exp(-inputs))
+
+    def backward(self, dvalues) -> None:
+        """
+        Performs a backward pass through the Sigmoid activation function.
+
+        This method calculates the gradient of the loss with respect to the
+        inputs by applying the derivative of the Sigmoid function. The gradient
+        is used during backpropagation to update the model's weights.
+
+        Parameters:
+            dvalues (np.ndarray): The gradient of the loss with respect to the
+                                  output of the Sigmoid activation function.
+
+        Returns:
+            None: The gradients after applying the Sigmoid derivative are
+                  stored in the `dinputs` attribute.
+        """
+        self.dinputs = dvalues * (1 - self.output) * self.output
+
+    def predictions(self, outputs):
+        """
+        Converts the Sigmoid output probabilities into binary predictions.
+
+        This method applies a threshold of 0.5 to the outputs of the Sigmoid
+        function to determine the predicted class. If the output is greater
+        than 0.5, the prediction is 1 (positive class); otherwise, it is 0
+        (negative class).
+
+        Parameters:
+            outputs (np.ndarray): The output values from the Sigmoid function.
+                                  Typically, these are probabilities between 0
+                                  and 1.
+
+        Returns:
+            np.ndarray: Binary predictions (0 or 1) based on the Sigmoid
+                        outputs.
+        """
+        return (outputs > 0.5) * 1
+
+
+class Activation_Linear:
+    """
+    Implements a linear activation function.
+
+    The linear activation function, also known as the identity function, simply
+    returns the input as output. It is often used in the output layer of
+    regression models where the output is a continuous value rather than a
+    probability.
+
+    Attributes:
+        inputs (np.ndarray): The input values to the activation function.
+        output (np.ndarray): The output values, which in the case of the linear
+                             activation function, are the same as the inputs.
+        dinputs (np.ndarray): The gradient of the loss with respect to the
+                              inputs,used during backpropagation.
+    """
+
+    def forward(self, inputs) -> None:
+        """
+        Performs a forward pass through the linear activation function.
+
+        In the linear activation function, the output is the same as the input.
+        This function is typically used in the output layer of regression
+        models.
+
+        Parameters:
+            inputs (np.ndarray): The input data to the activation function.
+
+        Returns:
+            None: The output is stored in the `output` attribute.
+        """
+        self.inputs = inputs
+        self.output = inputs
+
+    def backward(self, dvalues) -> None:
+        """
+        Performs a backward pass through the linear activation function.
+
+        During backpropagation, the gradient of the loss with respect to the
+        inputs is passed unchanged, as the derivative of the linear function
+        is 1.
+
+        Parameters:
+            dvalues (np.ndarray): The gradient of the loss with respect to the
+                                  output of the linear activation function.
+
+        Returns:
+            None: The gradients are stored in the `dinputs` attribute.
+        """
+        self.dinputs = dvalues.copy()
+
+    def predictions(self, outputs):
+        """
+        Returns the predictions made by the model.
+
+        For a linear activation function, the predictions are simply the output
+        values themselves. This method is useful in the context of regression
+        models where the output values represent the predicted continuous
+        values.
+
+        Parameters:
+            outputs (np.ndarray): The output values from the final layer of the
+                                  model.
+
+        Returns:
+            np.ndarray: The predictions, which in this case are the same as the
+                        outputs.
+        """
+        return outputs
+
 
 class Loss:
     """
@@ -348,11 +530,13 @@ class Loss:
 
     This class serves as a base class for various loss functions used in
     neural networks. It provides a method to calculate the average loss over a
-    batch of samples. The `forward` method, which computes the loss for each
-    sample, should be implemented in subclasses.
+    batch of samples and also handles regularization loss. The `forward`
+    method, which computes the loss for each sample, should be implemented in
+    subclasses.
 
     Attributes:
-        None: The base `Loss` class does not define any attributes on its own.
+        trainable_layers (list): A list of layers in the model that have
+                                 trainable parameters (weights and biases).
     """
 
     def regularization_loss(self, layer):
@@ -374,21 +558,23 @@ class Loss:
             float: The calculated regularization loss.
         """
         regularization_loss = 0
-        if layer.weight_regularization_l1 > 0:
-            regularization_loss += layer.weight_regularizer_l1 * np.sum(np.abs(
-                layer.weights))
+        for layer in self.trainable_layers:
 
-        if layer.weight_regularization_l2 > 0:
-            regularization_loss += layer.weight_regularizer_l2 * np.sum(
-                layer.weights * layer.weights)
+            if layer.weight_regularization_l1 > 0:
+                regularization_loss += layer.weight_regularizer_l1 * np.sum(
+                    np.abs(layer.weights))
 
-        if layer.bias_regularization_l1 > 0:
-            regularization_loss += layer.bias_regularizer_l1 * np.sum(np.abs(
-                    layer.bias))
+            if layer.weight_regularization_l2 > 0:
+                regularization_loss += layer.weight_regularizer_l2 * np.sum(
+                    layer.weights * layer.weights)
 
-        if layer.bias_regularization_l2 > 0:
-            regularization_loss += layer.bias_regularizer_l2 * np.sum(
-                layer.bias * layer.bias)
+            if layer.bias_regularization_l1 > 0:
+                regularization_loss += layer.bias_regularizer_l1 * np.sum(
+                    np.abs(layer.bias))
+
+            if layer.bias_regularization_l2 > 0:
+                regularization_loss += layer.bias_regularizer_l2 * np.sum(
+                    layer.bias * layer.bias)
 
         return regularization_loss
 
@@ -416,7 +602,24 @@ class Loss:
         """
         sample_losses = self.forward(output, y)
         data_loss = np.mean(sample_losses)
-        return data_loss
+        return data_loss, self.regularization_loss()
+
+    def remember_trainable_layers(self, trainable_layers):
+        """
+        Stores a reference to the trainable layers in the model.
+
+        This method is used to pass a reference of the trainable layers to the
+        loss function, so that the loss function can calculate regularization
+        loss on those layers.
+
+        Parameters:
+            trainable_layers (list): A list of layers that have trainable
+                                     parameters (weights and biases).
+
+        Returns:
+            None
+        """
+        self.trainable_layers = trainable_layers
 
 
 class Loss_CategoricalCrossEntropy:
@@ -488,6 +691,192 @@ class Loss_CategoricalCrossEntropy:
             y_true = np.eye(labels)[y_true]
 
         self.dinputs = -y_true / dvalues
+        self.dinputs = self.dinputs / samples
+
+
+class LossBinaryCrossentropy(Loss):
+    """
+    Implements the binary cross-entropy loss function.
+
+    This loss function is commonly used in binary classification tasks. It
+    measures the difference between two probability distributions,
+    specifically the predicted probabilities and the actual binary class
+    labels. The loss function is designed to output a loss value that reflects
+    how well the model's predictions align with the true labels.
+
+    Attributes:
+        dinputs (np.ndarray): The gradient of the loss with respect to the
+                              inputs, used during backpropagation.
+    """
+
+    def forward(self, y_pred, y_true):
+        """
+        Compute the binary cross-entropy loss.
+
+        This method calculates the binary cross-entropy loss by comparing the
+        predicted probabilities with the true binary class labels. The method
+        ensures numerical stability by clipping the predicted probabilities to
+        avoid taking the log of zero.
+
+        Parameters:
+            y_pred (np.ndarray): The predicted probabilities from the model.
+                                 The shape should be (n_samples, n_outputs).
+            y_true (np.ndarray): The true binary class labels. This should
+                                 have the same shape as `y_pred`.
+
+        Returns:
+            np.ndarray: An array of loss values for each sample in the batch.
+        """
+        y_pred_clipped = np.clip(y_pred, 1e-7, 1 - 1e-7)
+        sample_losses = -(y_true * np.log(y_pred_clipped) +
+                          (1 - y_true) * np.log(1 - y_pred_clipped))
+        sample_losses = np.mean(sample_losses, axis=1)
+        return sample_losses
+
+    def backward(self, dvalues, y_true):
+        """
+        Performs a backward pass through the binary cross-entropy loss.
+
+        This method calculates the gradient of the loss with respect to the
+        inputs (the predicted probabilities). This gradient is used during
+        backpropagation to update the model's weights.
+
+        Parameters:
+            dvalues (np.ndarray): The gradient of the loss with respect to the
+                                  output of the previous layer (or activation
+                                  function). The shape should be
+                                  (n_samples, n_outputs).
+            y_true (np.ndarray): The true binary class labels. This should
+                                  have the same shape as `dvalues`.
+
+        Returns:
+            None: The gradients are stored in the `dinputs` attribute.
+        """
+        samples = len(dvalues)
+        outputs = len(dvalues[0])
+        clipped_dvalues = np.clip(dvalues, 1e-7, 1 - 1e-7)
+        self.dinputs = -(y_true / clipped_dvalues -
+                         (1 - y_true) / (1 - clipped_dvalues)) / outputs
+        self.dinputs = self.dinputs / samples
+
+
+class Loss_MeanSquareError(Loss):
+    """
+    Implements the Mean Squared Error (MSE) loss function.
+
+    The Mean Squared Error (MSE) loss function is commonly used in regression
+    tasks. It measures the average squared difference between the predicted
+    values and the true values, providing a measure of how well the model's
+    predictions align with the true continuous values.
+
+    Attributes:
+        dinputs (np.ndarray): The gradient of the loss with respect to the
+                              inputs,used during backpropagation.
+    """
+
+    def forward(self, y_pred, y_true):
+        """
+        Compute the Mean Squared Error (MSE) loss.
+
+        This method calculates the MSE loss by comparing the predicted values
+        with the true values. The loss is computed as the average of the
+        squared differences between the predicted and true values for each
+        sample.
+
+        Parameters:
+            y_pred (np.ndarray): The predicted values from the model.
+                                 The shape should be (n_samples, n_outputs).
+            y_true (np.ndarray): The true continuous values. This should have
+                                 the same shape as `y_pred`.
+
+        Returns:
+            np.ndarray: An array of loss values for each sample in the batch.
+        """
+        sample_losses = np.mean((y_true - y_pred) ** 2, axis=-1)
+        return sample_losses
+
+    def backward(self, dvalues, y_true):
+        """
+        Performs a backward pass through the Mean Squared Error (MSE) loss.
+
+        This method calculates the gradient of the loss with respect to the
+        inputs (the predicted values). This gradient is used during
+        backpropagation to update the model's weights.
+
+        Parameters:
+            dvalues (np.ndarray): The gradient of the loss with respect to the
+                                  output of the previous layer (or activation
+                                  function). The shape should be
+                                  (n_samples, n_outputs).
+            y_true (np.ndarray): The true continuous values. This should have
+                                 the same shape as `dvalues`.
+
+        Returns:
+            None: The gradients are stored in the `dinputs` attribute.
+        """
+        samples = len(dvalues)
+        outputs = len(dvalues[0])
+        self.dinputs = -2 * (y_true - dvalues) / outputs
+        self.dinputs = self.dinputs / samples
+
+
+class Loss_MeanAbsoluteError(Loss):
+    """
+    Implements the Mean Absolute Error (MAE) loss function.
+
+    The Mean Absolute Error (MAE) loss function is commonly used in regression
+    tasks. It measures the average absolute difference between the predicted
+    values and the true values, providing a measure of how well the model's
+    predictions align with the true continuous values.
+
+    Attributes:
+        dinputs (np.ndarray): The gradient of the loss with respect to the
+                              inputs, used during backpropagation.
+    """
+
+    def forward(self, y_pred, y_true):
+        """
+        Compute the Mean Absolute Error (MAE) loss.
+
+        This method calculates the MAE loss by comparing the predicted values
+        with the true values. The loss is computed as the average of the
+        absolute differences between the predicted and true values for each
+        sample.
+
+        Parameters:
+            y_pred (np.ndarray): The predicted values from the model.
+                                 The shape should be (n_samples, n_outputs).
+            y_true (np.ndarray): The true continuous values. This should have
+                                 the same shape as `y_pred`.
+
+        Returns:
+            np.ndarray: An array of loss values for each sample in the batch.
+        """
+        sample_losses = np.mean(np.abs(y_true - y_pred), axis=-1)
+        return sample_losses
+
+    def backward(self, dvalues, y_true):
+        """
+        Performs a backward pass through the Mean Absolute Error (MAE) loss.
+
+        This method calculates the gradient of the loss with respect to the
+        inputs (the predicted values). This gradient is used during
+        backpropagation to update the model's weights.
+
+        Parameters:
+            dvalues (np.ndarray): The gradient of the loss with respect to the
+                                  output of the previous layer (or activation
+                                  function). The shape should be
+                                  (n_samples, n_outputs).
+            y_true (np.ndarray): The true continuous values. This should have
+                                 the same shape as `dvalues`.
+
+        Returns:
+            None: The gradients are stored in the `dinputs` attribute.
+        """
+        samples = len(dvalues)
+        outputs = len(dvalues[0])
+        self.dinputs = np.sign(y_true - dvalues) / outputs
         self.dinputs = self.dinputs / samples
 
 
@@ -1054,6 +1443,177 @@ class Optimizer_Adam:
             None
         """
         self.iterations += 1
+
+
+class Layer_Input:
+    """
+    Represents the input layer of a neural network.
+
+    The input layer serves as the entry point for data into the neural network.
+    It does not perform any computations but simply passes the input data
+    forward to the next layer.
+
+    Attributes:
+        output (np.ndarray): The data that is passed to the next layer in the
+                             network.
+    """
+
+    def forward(self, inputs):
+        """
+        Performs a forward pass through the input layer.
+
+        The forward method for the input layer simply sets the input data as
+        the output. This output will then be passed to the next layer in the
+        model.
+
+        Parameters:
+            inputs (np.ndarray): The input data provided to the neural network.
+
+        Returns:
+            None: The input data is stored in the `output` attribute and
+                  passed to the next layer in the network.
+        """
+        self.output = inputs
+
+
+class Model:
+    """
+    Represents a neural network model.
+
+    This class is designed to build, compile, and train a neural network model.
+    It allows for the sequential addition of layers, setting of the loss
+    function and optimizer, and training the model on a given dataset.
+
+    Attributes:
+        layers (list): A list of layers in the model.
+        loss (object): The loss function used to compute the loss during
+                       training.
+        optimizer (object): The optimizer used to update the model's weights.
+        input_layer (Layer_Input): The input layer of the model.
+        output_layer_activation (object): The final activation layer in the
+                                          model.
+        trainable_layers (list): A list of layers that have trainable
+                                 parameters.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes the Model instance.
+
+        This method initializes an empty list of layers to which new layers can
+        be added. It also initializes placeholders for the loss function,
+        optimizer, input layer, output layer activation, and trainable layers.
+        """
+        self.layers = []
+
+    def add(self, layer) -> None:
+        """
+        Adds a layer to the model.
+
+        This method appends a new layer to the list of layers in the model. The
+        layers are added sequentially and will be connected in the order they
+        are added.
+
+        Parameters:
+            layer (object): The layer to be added to the model.
+
+        Returns:
+            None
+        """
+        self.layers.append(layer)
+
+    def set(self, *, loss, optimizer) -> None:
+        """
+        Sets the loss function and optimizer for the model.
+
+        This method assigns the specified loss function and optimizer to the
+        model,which will be used during training to compute the loss and
+        update the weights.
+
+        Parameters:
+            loss (object): The loss function to be used during training.
+            optimizer (object): The optimizer to be used for updating the
+            weights.
+
+        Returns:
+            None
+        """
+        self.loss = loss
+        self.optimizer = optimizer
+
+    def finalize(self) -> None:
+        """
+        Finalizes the model by connecting the layers.
+
+        This method connects the layers of the model sequentially, ensuring
+        that each layer is connected to the previous and next layers. It also
+        identifies the trainable layers in the model (those with weights) and
+        sets up the input layer.
+
+        Returns:
+            None
+        """
+        self.input_layer = Layer_Input()
+        layer_count = len(self.layers)
+        self.trainable_layers = []
+
+        for i, layer in enumerate(self.layers):
+            if i == 0:
+                layer.prev = self.input_layer
+                layer.next = self.layers[i + 1]
+            elif i < layer_count - 1:
+                layer.prev = self.layers[i - 1]
+                layer.next = self.layers[i + 1]
+            else:
+                layer.prev = self.layers[i - 1]
+                layer.next = self.loss
+                self.output_layer_activation = layer
+
+            if hasattr(layer, 'weights'):
+                self.trainable_layers.append(layer)
+
+    def train(self, X, y, *, epochs=1, print_every=1) -> None:
+        """
+        Trains the model on the given dataset.
+
+        This method performs the training process, where the model learns from
+        the data by iteratively adjusting the weights. The model's performance
+        is printed at specified intervals.
+
+        Parameters:
+            X (np.ndarray): The input data to train on.
+            y (np.ndarray): The true output values (labels).
+            epochs (int): The number of times to iterate over the entire
+                          dataset.
+            print_every (int): The interval (in epochs) at which to print
+                               progress.
+
+        Returns:
+            None
+        """
+        for epoch in range(1, epochs + 1):
+            output = self.forward(X)
+            if epoch % print_every == 0:
+                print(f'Epoch {epoch}, Output: {output}')
+
+    def forward(self, X) -> np.ndarray:
+        """
+        Performs a forward pass through the model.
+
+        This method passes the input data through each layer of the model in
+        sequence, from the input layer to the final output layer, returning the
+        final output.
+
+        Parameters:
+            X (np.ndarray): The input data to pass through the model.
+
+        Returns:
+            np.ndarray: The output of the final layer after the forward pass.
+        """
+        self.input_layer.forward(X)
+        for layer in self.layers:
+            layer.forward(layer.prev.output)
+        return self.layers[-1].output
 
 
 # print("Python:", sys.version)
