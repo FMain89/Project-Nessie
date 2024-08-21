@@ -1,7 +1,7 @@
 
 # Neural Network from Scratch
 
-This repository contains an implementation of a neural network built from scratch in Python. The code provides basic components necessary to create, train, and optimize a neural network, including activation functions, loss functions, optimizers, and regularization techniques.
+This repository contains an implementation of a neural network built from scratch in Python. The code provides all the essential components necessary to create, train, and optimize a neural network, including activation functions, loss functions, optimizers, and regularization techniques.
 
 ## Table of Contents
 
@@ -16,102 +16,88 @@ This repository contains an implementation of a neural network built from scratc
 
 ## Introduction
 
-This project is a simple yet comprehensive implementation of a neural network in Python, designed for educational purposes. It demonstrates how to build a neural network from the ground up, covering everything from defining layers and activation functions to implementing various optimization algorithms and regularization techniques.
+This project demonstrates how to build a neural network from scratch without relying on external machine learning libraries such as TensorFlow or PyTorch. The implementation includes basic layers, various activation functions, optimizers, and loss functions, enabling users to experiment and understand the underlying mechanics of neural networks.
 
 ## Features
 
-- **Fully Connected Layers**: Implementation of dense (fully connected) layers.
-- **Activation Functions**:
-  - ReLU (Rectified Linear Unit)
-  - Softmax
-- **Loss Functions**:
-  - Categorical Cross-Entropy
-- **Optimizers**:
-  - Stochastic Gradient Descent (SGD)
-  - Adagrad
-  - RMSprop
-  - Adam
-- **Regularization**:
-  - L1 and L2 regularization on weights and biases
-- **Dropout**:
-  - Dropout layer for regularization during training
-- **Backpropagation**: Implementation of backward passes for updating the model parameters.
-- **Integration**: Combination of Softmax activation with Categorical Cross-Entropy loss for streamlined gradient calculations.
+- **Layers**: Dense layers, Dropout layers, Input layer.
+- **Activation Functions**: ReLU, Softmax, Sigmoid, Linear.
+- **Loss Functions**: Categorical Cross-Entropy, Binary Cross-Entropy, Mean Squared Error, Mean Absolute Error.
+- **Optimizers**: Stochastic Gradient Descent (SGD), Adagrad, RMSprop, Adam.
+- **Regularization**: L1 and L2 regularization for weights and biases.
+- **Accuracy Metrics**: Support for categorical and regression accuracy calculations.
+- **Combined Functions**: Softmax activation combined with categorical cross-entropy loss for efficient backpropagation.
 
 ## Installation
 
-1. **Clone the repository**:
+1. Clone the repository:
    ```bash
-   git clone https://github.com/FMain89/Project-Nessie.git
+   git clone https://github.com/fmain89/Project-Nessie.git
+   ```
+2. Navigate to the project directory:
+   ```bash
    cd Project-Nessie
    ```
-
-2. **Install dependencies**:
-   Ensure you have Python installed, and install necessary packages using pip:
+3. Install the required dependencies:
    ```bash
-   pip install numpy
+   pip install -r requirements.txt
    ```
 
 ## Usage
 
-You can run the neural network by executing the `main.py` file. It contains examples of how to define the network architecture, apply the activation functions, compute the loss, and optimize the parameters using the various optimizers provided.
+### Example: Training a Simple Neural Network
 
-```bash
-python main.py
+```python
+import numpy as np
+from main import Model, Layer_Dense, Activation_ReLU, Activation_Softmax, Loss_CategoricalCrossEntropy, Optimizer_Adam, Accuracy_Categorical
+
+# Sample data
+X = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+y = np.array([0, 1, 2])
+
+# Initialize the model
+model = Model()
+model.add(Layer_Dense(3, 64))
+model.add(Activation_ReLU())
+model.add(Layer_Dense(64, 3))
+model.add(Activation_Softmax())
+
+# Set loss, optimizer, and accuracy
+model.set(
+    loss=Loss_CategoricalCrossEntropy(),
+    optimizer=Optimizer_Adam(),
+    accuracy=Accuracy_Categorical()
+)
+
+# Finalize the model
+model.finalize()
+
+# Train the model
+model.train(X, y, epochs=100, print_every=10)
 ```
 
 ## File Structure
 
-- `main.py`: The main file containing all class definitions and an example workflow.
-- `README.md`: This file, providing information about the project.
+- `main.py`: Contains the implementation of all layers, activation functions, loss functions, optimizers, and the model.
+- `ReadMe.md`: Documentation for the project.
 
 ## Examples
 
-### Defining a Simple Neural Network
+### Training with Different Loss Functions and Optimizers
 
-Below is an example of how to define a simple neural network using the components provided in this repository:
-
-```python
-import numpy as np
-from main import Layer_Dense, Activation_ReLU, Activation_Softmax, Loss_CategoricalCrossEntropy, Optimizer_SGD, Layer_Dropout
-
-# Example input data
-X = np.array([[1, 2], [2, 3], [3, 4]])
-y = np.array([0, 1, 1])
-
-# Define layers
-dense1 = Layer_Dense(2, 3, weight_regularizer_l2=0.01)
-activation1 = Activation_ReLU()
-dropout1 = Layer_Dropout(0.5)
-dense2 = Layer_Dense(3, 3)
-activation2 = Activation_Softmax()
-
-# Forward pass
-dense1.forward(X)
-activation1.forward(dense1.output)
-dropout1.forward(activation1.output)
-dense2.forward(dropout1.output)
-activation2.forward(dense2.output)
-
-# Compute loss
-loss_function = Loss_CategoricalCrossEntropy()
-loss = loss_function.calculate(activation2.output, y)
-
-print(f"Loss: {loss}")
-```
-
-### Optimizing the Model
-
-You can also optimize the model parameters using one of the optimizers:
+You can easily switch between different loss functions and optimizers by modifying the corresponding lines in the code. For example:
 
 ```python
-optimizer = Optimizer_SGD(learning_rate=0.01, decay=1e-6, momentum=0.9)
-optimizer.update_params(dense1)
+model.set(
+    loss=Loss_MeanSquareError(),
+    optimizer=Optimizer_RMSprop(),
+    accuracy=Accuracy_Regresson()
+)
 ```
 
 ## Contributing
 
-Contributions are welcome! Please fork this repository and submit a pull request to contribute. Ensure your code follows the Flake8 style guide.
+Contributions are welcome! Please fork the repository and submit a pull request.
 
 ## License
 
