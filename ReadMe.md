@@ -76,9 +76,27 @@ model.finalize()
 model.train(X, y, epochs=100, print_every=10)
 ```
 
+### Quick End-to-End Test
+
+Run the deterministic three-class example to watch the network improve on an
+unseen test set:
+
+```bash
+python examples/train_three_classes.py
+```
+
+Run the focused regression suite with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
 ## File Structure
 
 - `main.py`: Contains the implementation of all layers, activation functions, loss functions, optimizers, and the model.
+- `examples/train_three_classes.py`: Demonstrates end-to-end learning on three synthetic classes.
+- `fashion_MNIST.py`: Trains an example classifier on Fashion-MNIST.
+- `requirements.txt`: Lists the Python dependencies for the library and example.
 - `ReadMe.md`: Documentation for the project.
 
 ## Examples
